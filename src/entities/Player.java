@@ -1,5 +1,6 @@
 package entities;
 
+import gamestates.Playing;
 import main.Game;
 import utils.LoadSave;
 
@@ -59,8 +60,12 @@ public class Player extends Entity{
     private int flipX = 0;
     private int flipW = 1;
 
-    public Player (float x, float y, int width, int height){
+    private boolean attackChecked;
+    private Playing playing;
+
+    public Player (float x, float y, int width, int height, Playing playing){
         super(x, y, width, height);
+        this.playing = playing;
         this.playerSpeed = 1 * Game.SCALE;
         this.loadAnimations();
         initHitBox(x, y, (int)(20 * Game.SCALE), (int)(27 * Game.SCALE));
@@ -81,10 +86,26 @@ public class Player extends Entity{
 
     public void update(){
         updateHealthBar();
+        if(currentHealth <= 0) {
+            playing.setGameOver(true);
+            return;
+        }
+
+
         updateAttackBox();
         updatePos();
+        if(isAttacking){
+            checkAttack();
+        }
         updateAnimationTick();
         setAnimation();
+    }
+
+    private void checkAttack() {
+        if(attackChecked || animIndex != 1)
+            return;
+        attackChecked = true;
+        playing.checkEnemyHit(attackBox);
     }
 
     private void updateAttackBox() {
@@ -136,6 +157,14 @@ public class Player extends Entity{
         playerAction = inAir ? airSpeed < 0 ? JUMP : FALLING : playerAction;
 
         playerAction = isAttacking ? ATTACK : playerAction;
+        if(isAttacking)
+            if(startAnim != ATTACK)
+            {
+                animIndex = 1;
+                animTick = 0;
+                return;
+            }
+
         
         if (startAnim != playerAction){
             resetAnimTick();
@@ -244,6 +273,8 @@ public class Player extends Entity{
             animIndex++;
             if (animIndex == GetSpriteAmount(playerAction)){
                 isAttacking = false;
+                animIndex = 0;
+                attackChecked = false;
             }
             animIndex = animIndex % GetSpriteAmount(playerAction);
         }
@@ -308,4 +339,18 @@ public class Player extends Entity{
         this.right = right;
     }
 
+    public void resetAll() {
+        resetDirBooleans();
+        inAir = false;
+        isAttacking = false;
+        isMoving = false;
+        playerAction = IDLE;
+        currentHealth = maxHealth;
+
+        hitBox.x = x;
+        hitBox.y = y;
+
+        if(!IsEntityOnFloor(hitBox, lvlData))
+            inAir = true;
+    }
 }
